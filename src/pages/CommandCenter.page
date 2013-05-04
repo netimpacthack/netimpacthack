@@ -1,0 +1,150 @@
+<apex:page standardController="OpportunityLineItem" extensions="CommandCenterController">
+    <apex:includeScript value="{!URLFOR($Resource.jQuery, 'jquery-ui-1.10.3.custom/development-bundle/jquery-1.9.1.js')}" />
+    <apex:includeScript value="{!URLFOR($Resource.jQuery, 'jquery-ui-1.10.3.custom/js/jquery-ui-1.10.3.custom.js')}" />
+    <apex:stylesheet value="{!URLFOR($Resource.jQuery, 'jquery-ui-1.10.3.custom/css/ui-lightness/jquery-ui-1.10.3.custom.css')}" />
+    <style>
+        .productPanel {
+            display: block;
+            float: left;
+            text-align: center;
+            height: 210px;
+            width: 160px;
+            margin: 20px 0 0 20px;
+        }
+        .productLabel {
+            font-size: 16px;
+            font-weight: bold;   
+            color: #666666;   
+        }      
+        .productsType {
+            font-weight: bold;
+            font-size: 20px;
+            margin-left: 25px;
+        }
+        .productImage {
+            text-align: center;
+            border: 1px solid #BCBCBC;
+            border-radius: 15px;
+            height: 125px;
+            width: 125px;
+            padding: 10px;
+            box-shadow: 4px 4px 4px #888;
+            cursor: pointer;              
+            margin-bottom: 10px;
+            opacity: 0;
+            background: white;
+        }   
+        .productImage:hover {
+            box-shadow: 3px 3px 3px 3px rgb(26, 116, 186);
+            color: rgb(26, 116, 186);           
+        }        
+        .selectedProductImage {
+            text-align: center;
+            border: 1px solid #BCBCBC;
+            border-radius: 15px;
+            height: 125px;
+            width: 125px;
+            padding: 10px;
+            box-shadow: 0px 0px 3px 4px rgb(26, 116, 186); 
+            margin: 3px 0 7px 8px;  
+            background: white;
+        }
+    </style>
+
+    <apex:form id="all" >
+        <apex:sectionHeader title="Command Center" subtitle="Select a Product" /> 
+        <!-- Products Panel -->
+        <apex:pageBlock tabStyle="Product2" mode="edit" id="productsPanel" ><br />
+            <!-- Standard Products -->
+            <apex:outputText styleClass="productsType" value="{!opp.RecordType.Name} Products" /><br />
+            <apex:panelGrid > 
+                <apex:repeat value="{!productsList}" var="p">
+                    <apex:outputPanel styleClass="productPanel" rendered="{!p.Product2.Opportunity_Record_Type__c = opp.RecordType.Name}">
+                        <apex:commandLink action="{!setProductId}" reRender="inputPanel" immediate="true" oncomplete="slideOpen()">
+                            <apex:param name="selectedProductId" value="{!p.Id}" assignTo="{!selectedProductId}" />
+                            <apex:image styleClass="productImage" onclick="selected(this)" height="100" width="100" value="{!p.Product2.Product_Image__c}" /><br />         
+                        </apex:commandLink>                
+                        <apex:outputText style="visibility:hidden; position: absolute;" styleClass="productLabel" value="{!p.Id}" />
+                        <apex:outputText styleClass="productLabel" value="{!p.Name}" />
+                    </apex:outputPanel>                    
+                </apex:repeat>
+                <!-- Other Products -->
+                <apex:outputText styleClass="productsType" value="Other Products" />         
+                <apex:repeat value="{!productsList}" var="p">
+                    <apex:outputPanel styleClass="productPanel" rendered="{!ISBLANK(p.Product2.Opportunity_Record_Type__c)}">
+                        <apex:commandLink action="{!setProductId}" reRender="inputPanel" immediate="true" oncomplete="slideOpen()">
+                            <apex:param name="selectedProductId" value="{!p.Id}" assignTo="{!selectedProductId}" />
+                            <apex:image styleClass="productImage" onclick="selected(this)" height="100" width="100" value="{!p.Product2.Product_Image__c}" /><br />         
+                        </apex:commandLink>                
+                        <apex:outputText style="visibility:hidden; position: absolute;" styleClass="productLabel" value="{!p.Id}" />
+                        <apex:outputText styleClass="productLabel" value="{!p.Name}" />
+                    </apex:outputPanel>                    
+                </apex:repeat>      
+            </apex:panelGrid> 
+            <!-- Input Fields -->
+            <apex:outputPanel id="inputPanel" >
+                <apex:pageBlockSection title="{!selectedPriceBookEntry.Product2.Name} Details" columns="2" rendered="{!ISBLANK(selectedPriceBookEntry.Name)}">
+                    <apex:pageBlockSectionItem >
+                        <apex:outputLabel value="List Price"/>  
+                        <apex:outputField value="{!selectedPriceBookEntry.UnitPrice}" />
+                    </apex:pageBlockSectionItem>
+                    <apex:pageBlockSectionItem rendered="{!NOT(selectedPriceBookEntry.Product2.Require_Dates__c)}" />
+                    <apex:pageBlockSectionItem rendered="{!selectedPriceBookEntry.Product2.Require_Dates__c}">
+                        <apex:outputLabel value="Start Date"/>  
+                        <apex:inputField value="{!oli.Start_Date__c}" />
+                    </apex:pageBlockSectionItem>
+                    <apex:pageBlockSectionItem >
+                        <apex:outputLabel value="Sales Price"/>  
+                        <apex:inputField value="{!oli.UnitPrice}" required="true" id="salesPrice" />
+                    </apex:pageBlockSectionItem>
+                    <apex:pageBlockSectionItem rendered="{!selectedPriceBookEntry.Product2.Require_Dates__c}">
+                        <apex:outputLabel value="End Date"/>  
+                        <apex:inputField value="{!oli.End_Date__c}" />
+                    </apex:pageBlockSectionItem>
+                </apex:pageBlockSection><br />
+                <!-- Buttons -->
+                <apex:outputPanel styleClass="inputButtons" rendered="{!ISBLANK(selectedPriceBookEntry.Name)}">
+                    <apex:commandButton style="margin-left: 35%;" reRender="inputPanel" value=" Save " styleClass="saveButton" oncomplete="slideOpen()" action="{!specialSave}" />
+                    <apex:commandButton value=" Save and Add Another " reRender="inputPanel" oncomplete="slideOpen()" action="{!saveAndAdd}" />
+                    <apex:commandButton value=" Cancel " action="{!Cancel}" />
+                </apex:outputPanel> 
+            </apex:outputPanel>
+            <br /><br />
+        </apex:pageBlock>
+    </apex:form>
+
+    <script>
+        var j$ = jQuery.noConflict();        
+        var selectedObj;
+        var productPanelIsOpen = false;
+        var safeMode = false;
+        
+        j$(document).ready(function(){
+            fadeInProducts();
+        });        
+        
+        function fadeInProducts() {
+            j$('.productImage').animate({"opacity": "1"}, 600);
+        }
+
+        function selected(obj) {
+            if (selectedObj) selectedObj.className = 'productImage';
+            obj.className = 'selectedProductImage';
+            selectedObj = obj;
+        }
+        
+        function slideOpen() {
+            j$('#inputPanel').css('width','100%'); 
+            j$('#inputPanel').css("opacity", "0");  
+            j$('#inputPanel').css("visibility", "visible");  
+            if (productPanelIsOpen) {
+                j$('#inputPanel').slideToggle(1);         
+            } else {
+                j$('#inputPanel').slideToggle(300);     
+            }
+            j$('#inputPanel').animate({"opacity": "1"}, 600);
+            productPanelIsOpen = true;                
+            j$("#salesPrice").focus();
+        }     
+    </script>
+</apex:page>
