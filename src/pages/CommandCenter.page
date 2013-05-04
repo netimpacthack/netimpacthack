@@ -82,8 +82,8 @@
                 </apex:repeat>      
             </apex:panelGrid> 
             <!-- Input Fields -->
-            <apex:outputPanel id="inputPanel" >
-                <apex:pageBlockSection title="{!selectedPriceBookEntry.Product2.Name} Details" columns="2" rendered="{!ISBLANK(selectedPriceBookEntry.Name)}">
+            <apex:outputPanel id="inputPanel" styleClass="inputPanel">
+                <apex:pageBlockSection title="{!selectedPriceBookEntry.Product2.Name} Details" columns="2" rendered="{!NOT(ISBLANK(selectedPriceBookEntry.Name))}">
                     <apex:pageBlockSectionItem >
                         <apex:outputLabel value="List Price"/>  
                         <apex:outputField value="{!selectedPriceBookEntry.UnitPrice}" />
@@ -95,7 +95,7 @@
                     </apex:pageBlockSectionItem>
                     <apex:pageBlockSectionItem >
                         <apex:outputLabel value="Sales Price"/>  
-                        <apex:inputField value="{!oli.UnitPrice}" required="true" id="salesPrice" />
+                        <apex:inputField value="{!oli.UnitPrice}" required="true" id="salesPrice" styleClass="salesPrice" />
                     </apex:pageBlockSectionItem>
                     <apex:pageBlockSectionItem rendered="{!selectedPriceBookEntry.Product2.Require_Dates__c}">
                         <apex:outputLabel value="End Date"/>  
@@ -103,7 +103,7 @@
                     </apex:pageBlockSectionItem>
                 </apex:pageBlockSection><br />
                 <!-- Buttons -->
-                <apex:outputPanel styleClass="inputButtons" rendered="{!ISBLANK(selectedPriceBookEntry.Name)}">
+                <apex:outputPanel styleClass="inputButtons" rendered="{!NOT(ISBLANK(selectedPriceBookEntry.Name))}">
                     <apex:commandButton style="margin-left: 35%;" reRender="inputPanel" value=" Save " styleClass="saveButton" oncomplete="slideOpen()" action="{!specialSave}" />
                     <apex:commandButton value=" Save and Add Another " reRender="inputPanel" oncomplete="slideOpen()" action="{!saveAndAdd}" />
                     <apex:commandButton value=" Cancel " action="{!Cancel}" />
@@ -117,7 +117,6 @@
         var j$ = jQuery.noConflict();        
         var selectedObj;
         var productPanelIsOpen = false;
-        var safeMode = false;
         
         j$(document).ready(function(){
             fadeInProducts();
@@ -134,17 +133,13 @@
         }
         
         function slideOpen() {
-            j$('#inputPanel').css('width','100%'); 
-            j$('#inputPanel').css("opacity", "0");  
-            j$('#inputPanel').css("visibility", "visible");  
-            if (productPanelIsOpen) {
-                j$('#inputPanel').slideToggle(1);         
-            } else {
-                j$('#inputPanel').slideToggle(300);     
-            }
-            j$('#inputPanel').animate({"opacity": "1"}, 600);
+            j$('.inputPanel').css('width','100%'); 
+            j$('.inputPanel').css("opacity", "0");  
+            j$('.inputPanel').css("visibility", "visible");  
+            j$('.inputPanel').animate({"opacity": "1"}, 600);
             productPanelIsOpen = true;                
-            j$("#salesPrice").focus();
+            j$('.salesPrice').focus();
         }     
+        
     </script>
 </apex:page>
