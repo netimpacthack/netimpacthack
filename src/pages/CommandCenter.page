@@ -57,7 +57,7 @@
         <apex:pageBlock tabStyle="Product2" mode="edit" id="productsPanel" ><br />
             <!-- Standard Products -->
             <apex:outputText styleClass="productsType" value="{!opp.RecordType.Name} Products" /><br />
-            <apex:panelGrid > 
+            <apex:panelGrid id="grid"> 
                 <apex:repeat value="{!productsList}" var="p">
                     <apex:outputPanel styleClass="productPanel" rendered="{!p.Product2.Opportunity_Record_Type__c = opp.RecordType.Name}">
                         <apex:commandLink action="{!setProductId}" reRender="inputPanel" immediate="true" oncomplete="slideOpen()">
@@ -83,21 +83,26 @@
             </apex:panelGrid> 
             <!-- Input Fields -->
             <apex:outputPanel id="inputPanel" styleClass="inputPanel">
-                <apex:pageBlockSection title="{!selectedPriceBookEntry.Product2.Name} Details" columns="2" rendered="{!NOT(ISBLANK(selectedPriceBookEntry.Name))}">
+                <apex:pageMessages ></apex:pageMessages> 
+                <apex:pageBlockSection title="{!selectedPriceBookEntry.Product2.Name} Details - List Price ${!selectedPriceBookEntry.UnitPrice}" columns="2" rendered="{!NOT(ISBLANK(selectedPriceBookEntry.Name))}">
                     <apex:pageBlockSectionItem >
-                        <apex:outputLabel value="List Price"/>  
-                        <apex:outputField value="{!selectedPriceBookEntry.UnitPrice}" />
+                        <apex:outputLabel value="Quantity"/>  
+                        <apex:inputField value="{!oli.Quantity}" />
                     </apex:pageBlockSectionItem>
                     <apex:pageBlockSectionItem rendered="{!NOT(selectedPriceBookEntry.Product2.Require_Dates__c)}" />
-                    <apex:pageBlockSectionItem rendered="{!selectedPriceBookEntry.Product2.Require_Dates__c}">
-                        <apex:outputLabel value="Start Date"/>  
-                        <apex:inputField value="{!oli.Start_Date__c}" />
+                    <apex:pageBlockSectionItem rendered="{!AND(selectedPriceBookEntry.Product2.Require_Dates__c, selectedPriceBookEntry.Product2.Id <> '01ti0000000UdZRAA0')}" >
+                            <apex:outputLabel value="Start Date"/>  
+                            <apex:inputField value="{!oli.ServiceDate}" />
                     </apex:pageBlockSectionItem>
-                    <apex:pageBlockSectionItem >
+                    <apex:pageBlockSectionItem rendered="{!AND(selectedPriceBookEntry.Product2.Require_Dates__c, selectedPriceBookEntry.Product2.Id = '01ti0000000UdZRAA0')}" helpText="If a Traditional Sponsorship is selected, the end date will be one year from start date.">
+                            <apex:outputLabel value="Start Date"/>  
+                            <apex:inputField value="{!oli.ServiceDate}" />
+                    </apex:pageBlockSectionItem>
+                    <apex:pageBlockSectionItem helpText="Sales Price per unit.">
                         <apex:outputLabel value="Sales Price"/>  
                         <apex:inputField value="{!oli.UnitPrice}" required="true" id="salesPrice" styleClass="salesPrice" />
                     </apex:pageBlockSectionItem>
-                    <apex:pageBlockSectionItem rendered="{!selectedPriceBookEntry.Product2.Require_Dates__c}">
+                    <apex:pageBlockSectionItem rendered="{!AND(selectedPriceBookEntry.Product2.Require_Dates__c, selectedPriceBookEntry.Product2.Id <> '01ti0000000UdZRAA0')}">
                         <apex:outputLabel value="End Date"/>  
                         <apex:inputField value="{!oli.End_Date__c}" />
                     </apex:pageBlockSectionItem>
@@ -105,8 +110,8 @@
                 <!-- Buttons -->
                 <apex:outputPanel styleClass="inputButtons" rendered="{!NOT(ISBLANK(selectedPriceBookEntry.Name))}">
                     <apex:commandButton style="margin-left: 35%;" reRender="inputPanel" value=" Save " styleClass="saveButton" oncomplete="slideOpen()" action="{!specialSave}" />
-                    <apex:commandButton value=" Save and Add Another " reRender="inputPanel" oncomplete="slideOpen()" action="{!saveAndAdd}" />
-                    <apex:commandButton value=" Cancel " action="{!Cancel}" />
+                    <apex:commandButton value=" Save and Add Another " reRender="all, grid" oncomplete="fadeInProducts(); hideInputs();" action="{!saveAndAdd}" />
+                    <apex:commandButton value=" Cancel " action="{!specialCancel}" />
                 </apex:outputPanel> 
             </apex:outputPanel>
             <br /><br />
@@ -132,10 +137,15 @@
             selectedObj = obj;
         }
         
+        function hideInputs() {
+            j$('.inputPanel').css("opacity", "0");
+            j$('.inputPanel').css("visibility", "hidden");
+        }
+        
         function slideOpen() {
             j$('.inputPanel').css('width','100%'); 
             j$('.inputPanel').css("opacity", "0");  
-            j$('.inputPanel').css("visibility", "visible");  
+            j$('.inputPanel').css("visibility", "visible");
             j$('.inputPanel').animate({"opacity": "1"}, 600);
             productPanelIsOpen = true;                
             j$('.salesPrice').focus();

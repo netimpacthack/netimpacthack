@@ -21,18 +21,19 @@ public class CommandCenterController {
         String query = ' SELECT Id, Name, Product2.Product_Image__c, Product2.Id, Product2.Opportunity_Record_Type__c, UnitPrice, Product2.Require_Dates__c FROM PricebookEntry ';
                query += ' WHERE IsActive = true ';
                query += ' AND Product2.Add_to_Command_Center__c = true ';
+               query += ' AND PriceBook2Id = \'' + opp.PriceBook2Id + '\' ';
                query += ' AND (Product2.Opportunity_Record_Type__c = \'' + opp.RecordType.Name + '\' ';
                query += '     OR Product2.Opportunity_Record_Type__c = null) ';
                
-       List<PricebookEntry> newProductsList = Database.query(query);
-       System.debug(newProductsList);
-       return newProductsList;
+       productsList = Database.query(query);
+       productsList = removeExistingProducts();
+       System.debug(productsList);
+       return productsList;
     }
     
     private List<PriceBookEntry> removeExistingProducts() {
         List<OpportunityLineItem> olis = opp.OpportunityLineItems;
         List<PricebookEntry> newProductsListNoDupes = new List<PricebookEntry>();
-        
         for (PriceBookEntry p : productsList) {
             Boolean isDupe = false;
             for (OpportunityLineItem oli : olis) {
@@ -46,15 +47,20 @@ public class CommandCenterController {
                 newProductsListNoDupes.add(p);
             }
         }
-        
-        return newProductsListNoDupes;
+        productsList = newProductsListNoDupes;
+        return productsList;
     }
     
     private Opportunity getOpp() {
         System.debug('Getting opp info...');
-        List<Opportunity> opps = [SELECT Id, Name, RecordType.Name, AccountId, CloseDate, Pricebook2.Name, 
+        List<Opportunity> opps = [SELECT Id, Name, RecordType.Name, AccountId, CloseDate, Pricebook2.Name, Pricebook2.Id,
                                 (SELECT PricebookEntryId, PricebookEntry.Name, PricebookEntry.Product2.Id FROM OpportunityLineItems) currentProducts FROM Opportunity WHERE Id = :oli.OpportunityId];
-        return opps[0];
+        Opportunity o = opps[0];
+        if (o.Pricebook2.Id == null) {
+            Pricebook2 pb = [SELECT Id FROM Pricebook2 LIMIT 1];
+            o.Pricebook2Id = pb.Id; 
+        }
+        return o;
     }
         
     public void setProductId() {    
@@ -62,23 +68,27 @@ public class CommandCenterController {
         List<PricebookEntry> products = [SELECT Id, Name, Product2.Description, UnitPrice, Product2.Name, Product2.Require_Dates__c
                                             FROM PricebookEntry WHERE Id = :selectedProductId];
         selectedPriceBookEntry = products[0];        
-        oli.PricebookEntry = selectedPriceBookEntry;         
+        oli.PricebookEntryId = selectedPriceBookEntry.Id;
+        oli.PricebookEntry = selectedPriceBookEntry;      
+        clearFields();   
         setDefaultValues();
     } 
     
     private void setDefaultValues() {
         oli.UnitPrice = selectedPriceBookEntry.UnitPrice;
+        oli.Quantity = 1;
         if (oli.PricebookEntry.Product2.Require_Dates__c) {
-            oli.Start_Date__c = opp.CloseDate;
-            oli.End_Date__c = oli.Start_Date__c.addYears(1).addDays(-1);
+            oli.ServiceDate = opp.CloseDate;
+            oli.End_Date__c = oli.ServiceDate.addYears(1).addDays(-1);
         }
     }
         
     public PageReference specialSave() {
         System.debug('Saving record...');
           
-        try {                        
-            PageReference saveResults = controller.save();   
+        try {             
+            forceValues();           
+            insert oli;   
             return new PageReference('/' + oli.OpportunityId);
         } catch (Exception e) {
             ApexPages.addMessage(new ApexPages.Message(ApexPages.Severity.ERROR,e.getMessage()));
@@ -89,18 +99,31 @@ public class CommandCenterController {
     public void saveAndAdd() {
         System.debug('Saving and adding...');
         try {
-            controller.save();
+            forceValues();
+            insert oli;
             oli = new OpportunityLineItem();
             oli.OpportunityId = opp.Id;
+            opp = getOpp();
+            productsList = refreshProducts();
         } catch (Exception e) {
             ApexPages.addMessage(new ApexPages.Message(ApexPages.Severity.ERROR,e.getMessage()));
+        }
+    }
+    
+    public PageReference specialCancel() {
+        return new PageReference('/' + oli.OpportunityId);
+    }
+    
+    public void forceValues() {
+        if (selectedPriceBookEntry.Product2.Id == '01ti0000000UdZRAA0') {
+            oli.End_Date__c = oli.ServiceDate.addYears(1).addDays(-1);
         }
     }
     
     public void clearFields() {
         System.debug('Clearing fields...');    
         oli.UnitPrice = null;
-        oli.Start_Date__c = null;
+        oli.ServiceDate = null;
         oli.End_Date__c = null;
     }
     
